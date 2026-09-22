@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Open KWallet
+Comment=Open kdewallet automatically after Plasma login
+Exec=$HOME/.local/bin/Open-KWallet.sh
+Terminal=false
+X-KDE-autostart-after=panel
+X-KDE-StartupNotify=false
