@@ -2,7 +2,7 @@
 
 This lightweight workaround on systems where KWallet does not open automatically, this setup automatically checks whether `kdewallet` is open after signing in through SDDM and Plasma desktop starts. If the wallet is closed, it opens it using KDE's D-Bus interface.
 
->IMPORTANT!
+> [!IMPORTANT]
 > No passwords are stored in the script.
 
 
@@ -24,7 +24,7 @@ After a successful SDDM login:
 This is intended for KDE Plasma 6.
 
 Required components:
-> NOTE
+> [!NOTE]
 > This install script will check if these packages are installed, if there not it will install them using pacman.
 
 - `bash`,
@@ -83,7 +83,7 @@ true
 
 # Uninstall
 
-> IMPORTANT!
+> [!IMPORTANT]
 > DO NOT REMOVE THE DOT IT IS NEEDED FOR THE SCRIPT TO RUN.
 
 <p align="center">
