@@ -58,7 +58,7 @@ Portable uninstall:
 
 ```bash
 chmod +x uninstall.sh
-./uninstall.sh
+. ./uninstall.sh
 ```
 
 This removes only KDE-KWallet's user files. It deliberately leaves your system KDE, KWallet, SDDM, Qt, and other distribution packages untouched.
