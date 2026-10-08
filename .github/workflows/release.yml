@@ -30,6 +30,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Rename release and assets
         shell: bash
         env:
@@ -169,15 +174,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           distros=(Arch Debian Ubuntu-Kubuntu Fedora openSUSE)
-
           for distro in "${distros[@]}"; do
             test -f "$distro/installer.sh"
             test -f "$distro/Open-KWallet.sh"
             test -f "$distro/open-kwallet.desktop"
             test -f "$distro/uninstaller.sh"
-
             bash -n "$distro/installer.sh"
             bash -n "$distro/Open-KWallet.sh"
             bash -n "$distro/uninstaller.sh"
@@ -189,17 +191,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
-          mapfile -t release_tags < <(
-            gh release list --limit 100 --json tagName --jq '.[].tagName'
-          )
-
+          mapfile -t release_tags < <(gh release list --limit 100 --json tagName --jq '.[].tagName')
           for tag in "${release_tags[@]}"; do
-            mapfile -t zip_assets < <(
-              gh release view "$tag" --json assets --jq '.assets[].name' |
-              grep -E '\.zip$' || true
-            )
-
+            mapfile -t zip_assets < <(gh release view "$tag" --json assets --jq '.assets[].name' | grep -E '\.zip$' || true)
             for asset in "${zip_assets[@]}"; do
               [[ -n "$asset" ]] || continue
               gh release delete-asset "$tag" "$asset" --yes
@@ -212,35 +206,18 @@ jobs:
           BASE: ${{ steps.version.outputs.base }}
         run: |
           set -euo pipefail
-
           rm -rf dist
           mkdir -p dist
           distros=(Arch Debian Ubuntu-Kubuntu Fedora openSUSE)
-
           for distro in "${distros[@]}"; do
             package="$BASE-$distro"
             mkdir -p "dist/$package"
-
-            cp \
-              "$distro/installer.sh" \
-              "$distro/Open-KWallet.sh" \
-              "$distro/open-kwallet.desktop" \
-              "$distro/uninstaller.sh" \
-              "dist/$package/"
-
-            chmod 755 \
-              "dist/$package/installer.sh" \
-              "dist/$package/Open-KWallet.sh" \
-              "dist/$package/uninstaller.sh"
-
+            cp "$distro/installer.sh" "$distro/Open-KWallet.sh" "$distro/open-kwallet.desktop" "$distro/uninstaller.sh" "dist/$package/"
+            chmod 755 "dist/$package/installer.sh" "dist/$package/Open-KWallet.sh" "dist/$package/uninstaller.sh"
             chmod 644 "dist/$package/open-kwallet.desktop"
             tar -C dist -czf "dist/$package.tar.gz" "$package"
           done
-
-          (
-            cd dist
-            sha256sum "$BASE"-*.tar.gz > SHA256SUMS.txt
-          )
+          (cd dist && sha256sum "$BASE"-*.tar.gz > SHA256SUMS.txt)
 
       - name: Generate release notes and contributors
         shell: bash
@@ -251,7 +228,6 @@ jobs:
           BASE: ${{ steps.version.outputs.base }}
         run: |
           set -euo pipefail
-
           cat > release-intro.md <<EOF_NOTES
           # KDE-KWallet v$VERSION
 
@@ -268,38 +244,16 @@ jobs:
           Verify downloads with \`SHA256SUMS.txt\`.
           EOF_NOTES
 
-          generated_notes="$(
-            gh api \
-              --method POST \
-              "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
-              -f tag_name="$TAG" \
-              -f target_commitish="$GITHUB_SHA" \
-              --jq .body
-          )"
-
-          previous_tag="$(
-            gh release list \
-              --exclude-drafts \
-              --limit 100 \
-              --json tagName \
-              --jq ".[] | select(.tagName != \"$TAG\") | .tagName" |
-              head -n 1
-          )"
-
+          generated_notes="$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" --jq .body)"
+          previous_tag="$(gh release list --exclude-drafts --limit 100 --json tagName --jq ".[] | select(.tagName != \"$TAG\") | .tagName" | head -n 1)"
           contributors=""
           if [[ -n "$previous_tag" ]]; then
-            contributors="$(
-              gh api \
-                "repos/$GITHUB_REPOSITORY/compare/$previous_tag...$GITHUB_SHA" \
-                --jq '.commits[].author.login // empty' |
-                sort -u
-            )"
+            contributors="$(gh api "repos/$GITHUB_REPOSITORY/compare/$previous_tag...$GITHUB_SHA" --jq '.commits[].author.login // empty' | sort -u)"
           fi
 
           {
             cat release-intro.md
             printf '\n%s\n' "$generated_notes"
-
             if [[ -n "$contributors" ]]; then
               printf '\n## Contributors for this release\n'
               while IFS= read -r contributor; do
@@ -318,10 +272,8 @@ jobs:
           PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
           set -euo pipefail
-
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/*.tar.gz dist/SHA256SUMS.txt --clobber
-
             if [[ "$PRERELEASE" == "true" ]]; then
               gh release edit "$TAG" --title "KDE-KWallet v$VERSION" --notes-file release-notes.md --prerelease --latest=false
             else
