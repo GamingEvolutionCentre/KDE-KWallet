@@ -15,11 +15,6 @@ on:
   push:
     tags:
       - 'v*'
-    # Temporary trigger to refresh v1.2.0-beta.1 with contributor credits.
-    branches:
-      - main
-    paths:
-      - '.github/workflows/release.yml'
 
 permissions:
   contents: write
@@ -48,9 +43,6 @@ jobs:
             else
               prerelease=false
             fi
-          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            version="1.2.0-beta.1"
-            prerelease=true
           else
             version="${{ inputs.version }}"
             version="${version#v}"
