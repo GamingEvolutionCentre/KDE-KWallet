@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version (for example 1.2.0-beta.1)
+        description: Release version (for example 1.2.0-beta.2)
         required: true
-        default: 1.2.0-beta.1
+        default: 1.2.0-beta.2
       prerelease:
         description: Mark this release as a pre-release
         required: true
@@ -15,11 +15,6 @@ on:
   push:
     tags:
       - 'v*'
-    # Temporary main-branch trigger used to publish v1.2.0-beta.1.
-    branches:
-      - main
-    paths:
-      - '.github/workflows/release.yml'
 
 permissions:
   contents: write
@@ -48,9 +43,6 @@ jobs:
             else
               prerelease=false
             fi
-          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            version="1.2.0-beta.1"
-            prerelease=true
           else
             version="${{ inputs.version }}"
             version="${version#v}"
