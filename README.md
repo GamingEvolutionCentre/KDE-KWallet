@@ -58,6 +58,25 @@ Log out and back in after installation, or test it directly with:
 $HOME/.local/bin/Open-KWallet.sh
 ```
 
+## Version 1.1 distribution packages
+
+The upcoming v1.1 release is being split into distribution-specific downloads. Each distribution package contains only:
+
+- `installer.sh`
+- `Open-KWallet.sh`
+- `open-kwallet.desktop`
+- `uninstaller.sh`
+
+Current v1.1 folders:
+
+- `Arch/`
+- `Debian/`
+- `Ubuntu-Kubuntu/`
+- `Fedora/`
+- `openSUSE/`
+
+The launcher and desktop entry remain shared wherever possible. Distribution-specific changes are kept mainly to package names and package-manager commands.
+
 ## Arch Linux legacy TUI installer
 
 The original interactive installer is still included as `installer.sh`. It uses Arch Linux package names and `pacman`, so use it only on Arch-based systems:
