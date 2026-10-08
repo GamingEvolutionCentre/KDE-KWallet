@@ -24,114 +24,7 @@ permissions:
   contents: write
 
 jobs:
-  rename-v120-prerelease:
-    if: github.event_name == 'push' && github.ref_type == 'branch'
-    name: Rename v1.2.0 pre-release
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Rename release and assets
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          old_tag="v1.2.0-beta.1"
-          new_tag="v1.2.0"
-
-          gh release edit "$old_tag" \
-            --tag "$new_tag" \
-            --title "KDE-KWallet v1.2.0" \
-            --prerelease \
-            --latest=false
-
-          while IFS=$'\t' read -r api_url asset_name; do
-            [[ -n "$api_url" && -n "$asset_name" ]] || continue
-
-            if [[ "$asset_name" == *"v1.2.0-beta.1"* ]]; then
-              new_name="${asset_name/v1.2.0-beta.1/v1.2.0}"
-              gh api --method PATCH "$api_url" -f name="$new_name" >/dev/null
-            fi
-          done < <(
-            gh release view "$new_tag" \
-              --json assets \
-              --jq '.assets[] | [.apiUrl, .name] | @tsv'
-          )
-
-          rm -rf release-migration
-          mkdir -p release-migration
-
-          gh release download "$new_tag" \
-            --pattern '*.tar.gz' \
-            --dir release-migration
-
-          (
-            cd release-migration
-            sha256sum *.tar.gz > SHA256SUMS.txt
-          )
-
-          gh release upload "$new_tag" \
-            release-migration/SHA256SUMS.txt \
-            --clobber
-
-          generated_notes="$(
-            gh api \
-              --method POST \
-              "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
-              -f tag_name="$new_tag" \
-              -f target_commitish="main" \
-              --jq .body
-          )"
-
-          contributors="$(
-            gh api \
-              "repos/$GITHUB_REPOSITORY/compare/v1.1.0...$new_tag" \
-              --jq '.commits[].author.login // empty' |
-              sort -u
-          )"
-
-          cat > release-notes.md <<'EOF_NOTES'
-          # KDE-KWallet v1.2.0
-
-          Download the `.tar.gz` package for your Linux distribution:
-
-          - Arch Linux: `KDE-KWallet-v1.2.0-Arch.tar.gz`
-          - Debian: `KDE-KWallet-v1.2.0-Debian.tar.gz`
-          - Ubuntu / Kubuntu: `KDE-KWallet-v1.2.0-Ubuntu-Kubuntu.tar.gz`
-          - Fedora: `KDE-KWallet-v1.2.0-Fedora.tar.gz`
-          - openSUSE: `KDE-KWallet-v1.2.0-openSUSE.tar.gz`
-
-          Each package contains only `installer.sh`, `Open-KWallet.sh`, `open-kwallet.desktop`, and `uninstaller.sh`.
-
-          Verify downloads with `SHA256SUMS.txt`.
-          EOF_NOTES
-
-          {
-            printf '\n%s\n' "$generated_notes"
-
-            if [[ -n "$contributors" ]]; then
-              printf '\n## Contributors for this release\n'
-              while IFS= read -r contributor; do
-                [[ -n "$contributor" ]] || continue
-                printf -- '- @%s\n' "$contributor"
-              done <<< "$contributors"
-            fi
-          } >> release-notes.md
-
-          gh release edit "$new_tag" \
-            --title "KDE-KWallet v1.2.0" \
-            --notes-file release-notes.md \
-            --prerelease \
-            --latest=false
-
   release:
-    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
     name: Build and publish release
     runs-on: ubuntu-latest
 
@@ -154,6 +47,9 @@ jobs:
             else
               prerelease=false
             fi
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            version="1.2.0"
+            prerelease=true
           else
             version="${{ inputs.version }}"
             version="${version#v}"
@@ -209,14 +105,27 @@ jobs:
           rm -rf dist
           mkdir -p dist
           distros=(Arch Debian Ubuntu-Kubuntu Fedora openSUSE)
+
           for distro in "${distros[@]}"; do
             package="$BASE-$distro"
             mkdir -p "dist/$package"
-            cp "$distro/installer.sh" "$distro/Open-KWallet.sh" "$distro/open-kwallet.desktop" "$distro/uninstaller.sh" "dist/$package/"
-            chmod 755 "dist/$package/installer.sh" "dist/$package/Open-KWallet.sh" "dist/$package/uninstaller.sh"
+
+            cp \
+              "$distro/installer.sh" \
+              "$distro/Open-KWallet.sh" \
+              "$distro/open-kwallet.desktop" \
+              "$distro/uninstaller.sh" \
+              "dist/$package/"
+
+            chmod 755 \
+              "dist/$package/installer.sh" \
+              "dist/$package/Open-KWallet.sh" \
+              "dist/$package/uninstaller.sh"
             chmod 644 "dist/$package/open-kwallet.desktop"
+
             tar -C dist -czf "dist/$package.tar.gz" "$package"
           done
+
           (cd dist && sha256sum "$BASE"-*.tar.gz > SHA256SUMS.txt)
 
       - name: Generate release notes and contributors
@@ -228,6 +137,7 @@ jobs:
           BASE: ${{ steps.version.outputs.base }}
         run: |
           set -euo pipefail
+
           cat > release-intro.md <<EOF_NOTES
           # KDE-KWallet v$VERSION
 
@@ -247,8 +157,13 @@ jobs:
           generated_notes="$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" --jq .body)"
           previous_tag="$(gh release list --exclude-drafts --limit 100 --json tagName --jq ".[] | select(.tagName != \"$TAG\") | .tagName" | head -n 1)"
           contributors=""
+
           if [[ -n "$previous_tag" ]]; then
             contributors="$(gh api "repos/$GITHUB_REPOSITORY/compare/$previous_tag...$GITHUB_SHA" --jq '.commits[].author.login // empty' | sort -u)"
+          fi
+
+          if [[ -z "$contributors" ]]; then
+            contributors="$(gh api "repos/$GITHUB_REPOSITORY/contributors?per_page=100" --jq '.[].login' | sort -u)"
           fi
 
           {
@@ -272,8 +187,10 @@ jobs:
           PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
           set -euo pipefail
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/*.tar.gz dist/SHA256SUMS.txt --clobber
+
             if [[ "$PRERELEASE" == "true" ]]; then
               gh release edit "$TAG" --title "KDE-KWallet v$VERSION" --notes-file release-notes.md --prerelease --latest=false
             else
