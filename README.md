@@ -73,6 +73,7 @@ Current v1.1 folders:
 - `Debian/`
 - `Ubuntu-Kubuntu/`
 - `Fedora/`
+- `openSUSE/`
 
 The launcher and desktop entry remain shared wherever possible. Distribution-specific changes are kept mainly to package names and package-manager commands.
 
