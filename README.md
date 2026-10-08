@@ -5,12 +5,6 @@ KDE-KWallet is a lightweight login helper for Linux systems that use KDE KWallet
 > [!IMPORTANT]
 > No passwords are stored in the scripts.
 
-## Version 1
-
-The first packaged release is **v1.0.0**.
-
-Release downloads include a `.tar.gz`, a `.zip`, and `SHA256SUMS.txt` for verification.
-
 ## Linux compatibility
 
 The portable installer is distribution-independent. It does not call `pacman`, `apt`, `dnf`, `zypper`, or another package manager.
@@ -57,36 +51,6 @@ Log out and back in after installation, or test it directly with:
 ```bash
 $HOME/.local/bin/Open-KWallet.sh
 ```
-
-## Version 1.1 distribution packages
-
-The upcoming v1.1 release is being split into distribution-specific downloads. Each distribution package contains only:
-
-- `installer.sh`
-- `Open-KWallet.sh`
-- `open-kwallet.desktop`
-- `uninstaller.sh`
-
-Current v1.1 folders:
-
-- `Arch/`
-- `Debian/`
-- `Ubuntu-Kubuntu/`
-- `Fedora/`
-- `openSUSE/`
-
-The launcher and desktop entry remain shared wherever possible. Distribution-specific changes are kept mainly to package names and package-manager commands.
-
-## Arch Linux legacy TUI installer
-
-The original interactive installer is still included as `installer.sh`. It uses Arch Linux package names and `pacman`, so use it only on Arch-based systems:
-
-```bash
-chmod +x installer.sh
-./installer.sh
-```
-
-For cross-distribution installs, use `install.sh` instead.
 
 ## Uninstall
 
