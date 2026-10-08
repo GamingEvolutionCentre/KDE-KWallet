@@ -1,125 +1,102 @@
-# KDE KWallet
+# KDE-KWallet
 
-This lightweight workaround on systems where KWallet does not open automatically, this setup automatically checks whether `kdewallet` is open after signing in through SDDM and Plasma desktop starts. If the wallet is closed, it opens it using KDE's D-Bus interface.
+KDE-KWallet is a lightweight login helper for Linux systems that use KDE KWallet. After your desktop session starts, it checks whether the `kdewallet` wallet is open and asks KWallet to open it through KDE's D-Bus interface when needed.
 
 > [!IMPORTANT]
-> No passwords are stored in the script.
+> No passwords are stored in the scripts.
 
+## Version 1
 
-# How It Works
+The first packaged release is **v1.0.0**.
 
-After a successful SDDM login:
+Release downloads include a `.tar.gz`, a `.zip`, and `SHA256SUMS.txt` for verification.
 
-1. KDE Plasma starts.
-2. Plasma loads `open-kwallet.desktop` from `$HOME/.config/autostart/`.
-3. The autostart entry runs `$HOME/.local/bin/Open-KWallet.sh`.
-4. The script waits for the KWallet D-Bus service.
-5. It checks whether `kdewallet` is already open.
-6. If it is already open, the script exits.
-7. If it is closed, the script opens it.
+## Linux compatibility
 
+The portable installer is distribution-independent. It does not call `pacman`, `apt`, `dnf`, `zypper`, or another package manager.
 
-# Requirements
+It supports systems where one of these Qt D-Bus clients is available:
 
-This is intended for KDE Plasma 6.
+- `qdbus6`
+- `qdbus-qt6`
+- `qdbus`
 
-Required components:
-> [!NOTE]
-> This install script will check if these packages are installed, if there not it will install them using pacman.
+The launcher checks the KWallet 6 D-Bus service first and also includes fallbacks for older KWallet service names.
 
-- `bash`,
-- `KDE Plasma 6`,
-- `plasma-workspace`,
-- `KWallet`,
-- `kdewallet`,
-- `qdbus6`,
-- `sddm`
+You still need a working KDE KWallet installation on the system. On KDE Plasma this is normally supplied by your distribution's KDE/KWallet packages.
 
-<br>
+## How it works
 
-# Installation
+After login:
 
+1. Your desktop starts the `open-kwallet.desktop` autostart entry.
+2. The entry runs `$HOME/.local/bin/Open-KWallet.sh` (or your `XDG_BIN_HOME`).
+3. The script waits for a KWallet D-Bus service.
+4. It checks whether `kdewallet` is already open.
+5. If it is already open, the script exits.
+6. If it is closed, the script asks KWallet to open it.
 
-### Using Git
+## Recommended installation on any supported Linux distribution
+
+Download and extract the latest GitHub release, then run:
 
 ```bash
-git clone https://github.com/GamingEvolutionCentre/KDE-KWallet.git
-cd $HOME/KDE-KWallet
+chmod +x install.sh
+./install.sh
+```
+
+The installer creates:
+
+- `$HOME/.local/bin/Open-KWallet.sh`
+- `$HOME/.config/autostart/open-kwallet.desktop`
+
+It uses `XDG_BIN_HOME` and `XDG_CONFIG_HOME` when those variables are set.
+
+Log out and back in after installation, or test it directly with:
+
+```bash
+$HOME/.local/bin/Open-KWallet.sh
+```
+
+## Arch Linux legacy TUI installer
+
+The original interactive installer is still included as `installer.sh`. It uses Arch Linux package names and `pacman`, so use it only on Arch-based systems:
+
+```bash
 chmod +x installer.sh
 ./installer.sh
 ```
 
-<br>
+For cross-distribution installs, use `install.sh` instead.
 
-### Using GitHub CLI
+## Uninstall
 
-```bash
-gh repo clone GamingEvolutionCentre/KDE-KWallet
-cd $HOME/KDE-KWallet
-chmod +x installer.sh
-./installer.sh
-```
-
-The installer will:
-
-- Check and install missing dependencies.
-- Create `$HOME/.local/bin/` when needed.
-- Create `$HOME/.config/autostart/` when needed.
-- Install the script as `$HOME/.local/bin/Open-KWallet.sh`.
-- Install the Plasma autostart entry as `$HOME/.config/autostart/open-kwallet.desktop`.
-- Configure the autostart entry with the correct absolute script path.
-
-
-## Verify KWallet
-after installation reboot, After logging into Plasma run:
+Portable uninstall:
 
 ```bash
-qdbus6 org.kde.kwalletd6 /modules/kwalletd6 org.kde.KWallet.isOpen kdewallet
+chmod +x uninstall.sh
+./uninstall.sh
 ```
 
-After running the command above the expected result is:
-true
+This removes only KDE-KWallet's user files. It deliberately leaves your system KDE, KWallet, SDDM, Qt, and other distribution packages untouched.
 
+The original Arch-oriented interactive uninstaller remains available as `uninstaller.sh`.
 
-# Uninstall
+## GitHub Actions releases
 
-> [!IMPORTANT]
-> DO NOT REMOVE THE DOT IT IS NEEDED FOR THE SCRIPT TO RUN.
+`.github/workflows/release.yml` builds the portable release archives, generates SHA-256 checksums, and creates or updates a GitHub Release.
 
-<p align="center">
-    <img src="assets/uninstaller-error.png" width="600">
-</p>
-<br>
+You can publish a later version from **Actions → Release KDE-KWallet → Run workflow** and enter a semantic version such as `1.1.0`. Pushing a tag such as `v1.1.0` also runs the release workflow.
 
-Automatic (recommended)
-
-```bash
-cd $HOME/KDE-KWallet
-chmod +x uninstaller.sh
-. ./uninstall.sh
-. ./uninstall.sh --keep-dependencies
-```
-
-Manually
-
-```bash
-rm -rf $HOME/KDE-KWallet/ $HOME/.local/bin/Open-KWallet.sh $HOME/.config/autostart/open-kwallet.desktop
-```
-
-(Optional) DON'T DELETE IF YOU HAVE OTHER THINGS IN THERE!!
-```bash
-rm -rf $HOME/.config/autostart/
-```
-
-# Security
+## Security
 
 This project:
 
-- Does not store, request, or process your SDDM password.
-- Does not include credentials.
-- Runs as your logged-in user inside the Plasma session.
-- Communicates with KWallet through KDE's D-Bus interface.
+- does not store, request, or process your login password;
+- does not include credentials;
+- runs as your logged-in user;
+- communicates with KWallet through KDE's D-Bus interface.
 
-# Support
+## Support
 
-- If this helped you too maybe think about giving it a star.
+If the project helped you, consider starring the repository.
