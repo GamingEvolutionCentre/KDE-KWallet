@@ -1,0 +1,147 @@
+name: Release KDE-KWallet
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (for example 1.0.0)
+        required: true
+        default: 1.0.0
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            version="1.0.0"
+          else
+            version="${{ inputs.version }}"
+            version="${version#v}"
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use semantic versioning, for example 1.0.0" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "archive=KDE-KWallet-v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n Open-KWallet.sh
+          bash -n install.sh
+          bash -n uninstall.sh
+          bash -n installer.sh
+          bash -n uninstaller.sh
+
+      - name: Build portable release archives
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.version.outputs.archive }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "dist/$ARCHIVE"
+
+          cp Open-KWallet.sh install.sh uninstall.sh open-kwallet.desktop \
+             README.md LICENSE.md SECURITY.md "dist/$ARCHIVE/"
+
+          # Keep the original Arch-oriented TUI scripts available too.
+          cp installer.sh uninstaller.sh "dist/$ARCHIVE/"
+
+          chmod 755 \
+            "dist/$ARCHIVE/Open-KWallet.sh" \
+            "dist/$ARCHIVE/install.sh" \
+            "dist/$ARCHIVE/uninstall.sh" \
+            "dist/$ARCHIVE/installer.sh" \
+            "dist/$ARCHIVE/uninstaller.sh"
+
+          printf '%s\n' "$VERSION" > "dist/$ARCHIVE/VERSION"
+
+          tar -C dist -czf "dist/$ARCHIVE.tar.gz" "$ARCHIVE"
+          (cd dist && zip -qr "$ARCHIVE.zip" "$ARCHIVE")
+
+          (cd dist && sha256sum "$ARCHIVE.tar.gz" "$ARCHIVE.zip" > SHA256SUMS.txt)
+
+      - name: Publish GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.version.outputs.archive }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          cat > release-notes.md <<EOF_NOTES
+          # KDE-KWallet v$VERSION
+
+          Portable Linux release for KDE Plasma/KWallet systems.
+
+          ## Recommended install
+
+          1. Download either \`$ARCHIVE.tar.gz\` or \`$ARCHIVE.zip\`.
+          2. Extract it.
+          3. Run \`chmod +x install.sh\`.
+          4. Run \`./install.sh\`.
+          5. Log out and back in to Plasma.
+
+          The portable installer does not use a distribution-specific package manager. It works with KWallet 6 and also includes fallback support for older KWallet D-Bus service names when available.
+
+          Verify downloads with \`SHA256SUMS.txt\`.
+          EOF_NOTES
+
+          if [[ "$EVENT_NAME" == "push" ]] && gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists; leaving the original v1 release unchanged."
+            exit 0
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              "dist/$ARCHIVE.tar.gz" \
+              "dist/$ARCHIVE.zip" \
+              "dist/SHA256SUMS.txt" \
+              --clobber
+            gh release edit "$TAG" \
+              --title "KDE-KWallet v$VERSION" \
+              --notes-file release-notes.md
+          else
+            gh release create "$TAG" \
+              "dist/$ARCHIVE.tar.gz" \
+              "dist/$ARCHIVE.zip" \
+              "dist/SHA256SUMS.txt" \
+              --target "$GITHUB_SHA" \
+              --title "KDE-KWallet v$VERSION" \
+              --notes-file release-notes.md
+          fi
