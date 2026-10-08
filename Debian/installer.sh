@@ -396,16 +396,16 @@ wait_for_exit_to_terminal() {
 
 
 # ============================================================
-# Required Packages
+# Required Packages — Debian
 # ============================================================
 
 REQUIRED_PACKAGES=(
     bash
     plasma-workspace
-    kwallet
-    kwallet-pam
+    kwallet6
+    libpam-kwallet5
     sddm
-    qt6-tools
+    qdbus-qt6
 )
 
 
@@ -418,7 +418,7 @@ check_and_install_packages() {
 
     for package in "${REQUIRED_PACKAGES[@]}"; do
 
-        if pacman -Q "$package" >/dev/null 2>&1; then
+        if dpkg -s "$package" >/dev/null 2>&1; then
 
             ui_ok \
                 "$package"
@@ -457,14 +457,24 @@ check_and_install_packages() {
         echo
 
         ui_info \
-            "Installing missing packages with pacman..."
+            "Updating APT package lists..."
 
         echo
 
 
-        sudo pacman \
-            -S \
-            --needed \
+        sudo apt-get update
+
+
+        echo
+
+        ui_info \
+            "Installing missing packages with APT..."
+
+        echo
+
+
+        sudo apt-get install \
+            -y \
             "${missing_packages[@]}"
 
 

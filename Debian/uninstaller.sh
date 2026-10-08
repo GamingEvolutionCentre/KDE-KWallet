@@ -563,14 +563,14 @@ if [[ "${1:-}" == "--__kwallet_internal_run" ]]; then
 
 
     # ========================================================
-    # Command-Line Options
+    # Command-Line Options — Debian/APT
     # ========================================================
 
     case "${1:-}" in
 
         "")
 
-            PACMAN_REMOVE_OPTIONS=(-Rns)
+            APT_REMOVE_OPTIONS=(autoremove --purge -y)
 
             REMOVAL_MODE="including unused dependencies"
 
@@ -579,7 +579,7 @@ if [[ "${1:-}" == "--__kwallet_internal_run" ]]; then
 
         --keep-dependencies)
 
-            PACMAN_REMOVE_OPTIONS=(-R)
+            APT_REMOVE_OPTIONS=(remove -y)
 
             REMOVAL_MODE="remove packages but keeps dependencies"
 
@@ -620,16 +620,16 @@ if [[ "${1:-}" == "--__kwallet_internal_run" ]]; then
 
 
     # ========================================================
-    # Required Packages
+    # Required Packages — Debian
     # ========================================================
 
     REQUIRED_PACKAGES=(
         bash
         plasma-workspace
-        kwallet
-        kwallet-pam
+        kwallet6
+        libpam-kwallet5
         sddm
-        qt6-tools
+        qdbus-qt6
     )
 
 
@@ -730,7 +730,7 @@ if [[ "${1:-}" == "--__kwallet_internal_run" ]]; then
 
     for package in "${REQUIRED_PACKAGES[@]}"; do
 
-        if pacman -Q "$package" >/dev/null 2>&1; then
+        if dpkg -s "$package" >/dev/null 2>&1; then
 
             if ask_yes_or_no \
                 "Remove package '$package'?"; then
@@ -1024,15 +1024,14 @@ if [[ "${1:-}" == "--__kwallet_internal_run" ]]; then
     if (( ${#PACKAGES_TO_REMOVE[@]} > 0 )); then
 
         ui_info \
-            "Removing selected packages..."
+            "Removing selected packages with APT..."
 
 
         echo
 
 
-        sudo pacman \
-            "${PACMAN_REMOVE_OPTIONS[@]}" \
-            -- \
+        sudo apt-get \
+            "${APT_REMOVE_OPTIONS[@]}" \
             "${PACKAGES_TO_REMOVE[@]}"
 
 
