@@ -15,6 +15,11 @@ on:
   push:
     tags:
       - 'v*'
+    # Temporary trigger to refresh v1.2.0-beta.1 with contributor credits.
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release.yml'
 
 permissions:
   contents: write
@@ -43,6 +48,9 @@ jobs:
             else
               prerelease=false
             fi
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            version="1.2.0-beta.1"
+            prerelease=true
           else
             version="${{ inputs.version }}"
             version="${version#v}"
@@ -202,10 +210,47 @@ jobs:
               --jq .body
           )"
 
+          previous_tag="$(
+            gh release list \
+              --exclude-drafts \
+              --limit 100 \
+              --json tagName \
+              --jq ".[] | select(.tagName != \"$TAG\") | .tagName" |
+              head -n 1
+          )"
+
+          contributors=""
+
+          if [[ -n "$previous_tag" ]]; then
+            contributors="$(
+              gh api \
+                "repos/$GITHUB_REPOSITORY/compare/$previous_tag...$GITHUB_SHA" \
+                --jq '.commits[].author.login // empty' |
+                sort -u
+            )"
+          fi
+
+          if [[ -z "$contributors" ]]; then
+            contributors="$(
+              gh api \
+                "repos/$GITHUB_REPOSITORY/contributors?per_page=100" \
+                --jq '.[].login' |
+                sort -u
+            )"
+          fi
+
           {
             cat release-intro.md
             printf '\n\n'
             printf '%s\n' "$generated_notes"
+
+            if [[ -n "$contributors" ]]; then
+              printf '\n\n## Contributors for this release\n'
+              while IFS= read -r contributor; do
+                [[ -n "$contributor" ]] || continue
+                printf -- '- @%s\n' "$contributor"
+              done <<< "$contributors"
+            fi
           } > release-notes.md
 
       - name: Publish GitHub release
